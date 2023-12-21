@@ -1,0 +1,25 @@
+# how to disable the user management
+-> usermod [usrname] -s /bin/nologin
+
+# how to create a group 
+-> groupadd [grp_name] 
+# to add users to the group as secondary member
+-> usermod -aG [grp_name] [usrname]
+
+# how to change /bin/bash to /bin/nologin in passwd
+-> sed -i 's/^.*\/bin\/bash$/\/bin\/nologin/g' ./passwd
+
+===============================
+
+    OPENLDAP
+
+===============================
+
+1. client-server architecture
+2. Database
+3. Authenticate
+
+
+benefits: centralised tool for user management tool
+
+slapd service runs on the server

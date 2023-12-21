@@ -1,0 +1,69 @@
+========================================================================
+
+    this file will contain the instructions for the the diskfull 
+
+========================================================================
+
+step 1: prerequisits
+
+    # add two network adapter
+        1. NAT 
+        2. Host-only
+        3. disable firewall and selinux
+        4. add xcat repositories
+        5. install packages
+            -> yum install yum-utils
+            -> yum install epel-release
+            -> yum install xCAT
+            -> source /etc/profile.d/xcat.sh
+
+step 1: add the interface name for the master
+    -> chdef -t site dhcpinterfaces=ens37
+
+step 2: add the domain defination
+    -> chdef -t site domain=cdac.in 
+
+step 3: create the iso image from the diskimage
+    -> dd if=/dev/sr0 of=/centos.iso
+    -> copycds /centos.iso
+
+step 4: check the lists of the os images
+    -> lsdef -t osimage
+    # install-compute : statefull
+    # netboot-compute : stateless
+    # statelite-compute : statelite
+
+step 5: check the attributes of the osimages 
+    -> lsdef -t osimage centos7.9-x86_64-install-compute
+
+step 6: create the directory
+    -> mkdir -p /install/custom/netboot
+
+step 7: append the files list to the osimage 
+    -> vim /install/custom/netboot/compute.synclist
+    -> echo "/etc/passwd -> /etc/passwd" >> /install/custom/netboot/compute.synclist 
+    -> echo "/etc/shadow -> /etc/shadow" >> /install/custom/netboot/compute.synclist 
+    -> echo "/etc/group -> /etc/group" >> /install/custom/netboot/compute.synclist 
+    # another method
+    -> vim /install/custom/netboot/compute.synclist
+        /etc/passwd -> /etc/passwd
+        /etc/shadow -> /etc/shadow
+        /etc/group -> /etc/group 
+    
+step 8: create defination to add the node
+    -> mkdef -t node cn00 groups=compute,all ip=10.10.10.3 mac=(macaddresso the node) netboot=xnba
+    # example
+    -> # mkdef -t node cn00 groups=compute,all ip=10.10.10.3 mac=00:0C:29:2D:16:68 netboot=xnba
+    -> # mkdef -t node cn01 groups=compute,all ip=10.10.10.4 mac=00:0C:29:BE:29:3E netboot=xnba
+    -> # mkdef -t node node1 groups=compute,all ip=10.10.10.145 mac=00:0C:29:78:46:92 netboot=xnba
+
+step 9: add the domain and node hostnames
+    -> echo "[ip] master master.cdac.in" >> /etc/hosts
+
+step 10: create the makenetworks
+    -> makehosts
+    -> makedhcp -n
+    -> makedns -n
+
+step 11: test the node
+    -> nodeset compute osimage=centos7.9-x86_64-netboot-compute

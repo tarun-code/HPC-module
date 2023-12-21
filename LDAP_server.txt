@@ -1,0 +1,163 @@
+==============================================================
+        LDAP: (light weight directory access protocol)
+==============================================================
+
+# reference link : https://www.itzgeek.com/how-tos/linux/centos-how-tos/step-step-openldap-server-configuration-centos-7-rhel-7.html
+# cn = common name
+# dn = distuinguished name
+# sn = service name
+# uid = userid
+# gid = groupid
+# o = organization name
+
+
+
+# vm1 = server
+# vm2 = client
+# how to install ldap packages
+-> yum install openldap-servers openldap-clients
+
+# copy the data base  configuration file
+-> cp /usr/share/openldap-servers/DB_CONFIG.example /var/lib/ldap/DB_CONFIG
+
+# give the ownershoip to the ldap service
+-> chown ldap. /var/lib/ldap/DB_CONFIG
+
+# start the slapd service
+-> systemctl start slapd; systemctl enable slapd;
+
+# change the password
+-> slappasswd
+    New password: root
+    Re-Enter New password: root
+    {SSHA}FkAWKfdYnEyXnEJaocL5rcfSrZ80zLfu
+    
+# create a ldif file for setting the password ldap server 
+-> vim chrootpw.ldif    
+    dn: olcDatabase={0}config.cn=config
+    changetype: modify
+    add: olcRootPW
+    olcRootPW: {SSHA}FkAWKfdYnEyXnEJaocL5rcfSrZ80zLfu
+
+# now add the file to the ldap
+-> ldapadd -Y EXTERNAL -H ldapi:/// -f chrootpw.ldif
+    # output
+
+    SASL/EXTERNAL authentication started
+    SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+    SASL SSF: 0
+    modifying entry "olcDatabase={0}config,cn=config"
+
+# check the file content at this current file
+-> cat /etc/openldap/schema/cosine.schema
+
+
+# change the three attributes in the schema
+-> ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
+-> ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
+-> ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
+
+# set your domain name 
+-> vim chdomain.ldif
+dn: olcDatabase={1}monitor,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth"
+  read by dn.base="cn=Manager,dc=cdac,dc=in" read by * none
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcSuffix
+olcSuffix: dc=cdac,dc=in
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcRootDN
+olcRootDN: cn=Manager,dc=cdac,dc=in
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+add: olcRootPW
+olcRootPW: {SSHA}FkAWKfdYnEyXnEJaocL5rcfSrZ80zLfu
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+add: olcAccess
+olcAccess: {0}to attrs=userPassword,shadowLastChange by
+  dn="cn=Manager,dc=cdac,dc=in" write by anonymous auth by self write by * none
+olcAccess: {1}to dn.base="" by * read
+olcAccess: {2}to * by dn="cn=Manager,dc=cdac,dc=in" write by * read
+
+# create the file basedomain.ldif
+-> vim basedomain.ldif
+dn: dc=cdac,dc=in
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: cdac in
+dc: cdac
+
+dn: cn=Manager,dc=cdac,dc=in
+objectClass: organizationalRole
+cn: Manager
+description: Directory Manager
+
+dn: ou=People,dc=cdac,dc=in
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Group,dc=cdac,dc=in
+objectClass: organizationalUnit
+ou: Group
+    
+# now add the the file ldap server 
+-> ldapadd -x -D cn=Manager,dc=cdac,dc=in -W -f basedomain.ldif
+  # output
+    Enter LDAP Password:
+    adding new entry "dc=cdac,dc=in"
+
+    adding new entry "cn=Manager,dc=cdac,dc=in"
+
+    adding new entry "ou=People,dc=cdac,dc=in"
+
+    adding new entry "ou=Group,dc=cdac,dc=in"
+
+# now add the users the ldap server
+-> vim user1.ldif
+dn: uid=user1,ou=People,dc=cdac,dc=in
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: user1
+sn: test
+userPassword: {SSHA}FkAWKfdYnEyXnEJaocL5rcfSrZ80zLfu
+loginShell: /bin/bash
+uidNumber: 1001
+gidNumber: 1001
+homeDirectory: /home/user1
+
+dn: cn=user1,ou=Group,dc=cdac,dc=in
+objectClass: posixGroup
+cn: user1
+gidNumber: 1001
+
+
+# add the user to the ldap server
+-> ldapsearch -x cn=user1 -b dc=cdac,dc=in
+
+
+============================================
+  Commands to run on LDAP-client
+============================================
+# Don't forget to disable the firewalld and selinux
+# Don't forget to add the master entry in the /etc/hosts file
+
+# install the required packages in the client machine
+-> yum install openldap-clients nss-pam-ldapd
+
+
+
+
+
+
+itsgeeks : open ldap multimaster

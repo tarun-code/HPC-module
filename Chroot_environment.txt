@@ -1,0 +1,30 @@
+# export the bootimage path 
+-> export CHROOT=/install/netboot/centos7.9/x86_64/compute/rootimage/
+
+# check the CHROOT is correct or not
+-> chroot $CHROOT
+    -> mkdir demo
+        -> echo "this is demo_file" -> text.text
+    -> exit
+-> lsdef -t osimage
+-> packimage centos7.9-x86_64-netboot-compute
+
+# now reboot the pxe_client machine
+
+# how to install package on the false root filesystem
+
+# to install package
+-> yum --installroot=$CHROOT install vim
+
+# how to export an image
+-> imgexport [image_name]
+
+# how to import an image
+-> imgimport [image_name]
+
+# add node to xcat 
+-> chdef cn02 provemethod=[image_name] /install/netboot/centos7/../rootimg
+
+
+Defination:
+chroot is a command used to enter into a different file system,

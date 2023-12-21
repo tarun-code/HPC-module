@@ -1,0 +1,120 @@
+    1  clear
+    2  hostnamectl set-hostname machine1
+    3  exec bash
+    4  ip a | grep ens33
+    5  clear
+    6  ls -h
+    7  ls --help
+    8  ping 192.168.20.180
+    9  ssh-keygen
+   10  ssh-copy-id root@192.168.20.180
+   11  clear
+   12  ssh root@192.168.20.180 'echo "Hello" > /dec/pts/2'
+   13  ssh root@192.168.20.180 'echo "Hello" > /dev/pts/2'
+   14  ssh root@192.168.20.180 'echo "kaise ho" > /dev/pts/2'
+   15  tty
+   16  ip a | grep ens3
+   17  adduser master
+   18  passwd master
+   19  su master
+   20  su master -
+   21  sudo usermod -aG wheel master
+   22  su master -
+   23  init 0
+   24  init 3
+   25  clear
+   26  init 5
+   27  init 1
+   28  clear
+   29  ls
+   30  cd /
+   31  ls
+   32  init 5
+   33  clear
+   34  userdel master
+   35  exit
+   36  cat /etc/sysconfig/network-scripts/ifcfg-ens33 
+   37  ping google.com -c 3
+   38  firefox&
+   39  ping www.google.com -c 3
+   40  ping https://www.google.com -c 3
+   41  vim /etc/resolv.conf
+   42  ping https://www.google.com -c 3
+   43  ping www.google.com -c 3
+   44  vim /etc/resolv.conf
+   45  vim /etc/sysconfig/network-scripts/ifcfg-ens33 
+   46  ping www.google.com -c 3
+   47  ping https://www.google.com -c 3
+   48  cat /etc/sysconfig/network-scripts/ifcfg-ens33 
+   49  systemctl restart NetworkManager.service
+   50  ping https://www.google.com -c 3
+   51  vim /etc/resolv.conf
+   52  yum install syslinux
+   53  ls
+   54  ps 
+   55  ps  -a
+   56  yum install syslinux
+   57  cat /etc/resolv.conf
+   58  nmtui
+   59  systemctl restart network NetworkManager
+   60  ip a
+   61  ping google.com
+   62  cat /etc/resolv.conf
+   63  ping google.com
+   64  cat /etc/resolv.conf
+   65  vim /etc/resolv.conf
+   66  ping google.com
+   67  vim /etc/resolv.conf
+   68  ping google.com
+   69  getenforce 
+   70  setenforce 0
+   71  ping google.com
+   72  systemctl status firewalld
+   73  ping google.com
+   74  vim /etc/resolv.conf
+   75  ping google.com
+   76  systemctl restart network NetworkManager
+   77  ping google.com
+   78  yum makecache fast
+   79  yum clean all
+   80  yum makecache fast
+   81  ping google.com
+   82  yum install syslinux
+   83  sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config 
+   84  cat /etc/selinux/config 
+   85  clear
+   86  yum install xinetd tftp-sercer
+   87  yum install xinetd tftp-server
+   88  clear
+   89  yum install dhcp
+   90  vim /etc/dhcp/dhcpd.conf 
+   91  cat /etc/dhcp/dhcpd.conf 
+   92  dhcpd -t
+   93  vim /etc/dhcp/dhcpd.conf 
+   94  dhcpd -t
+   95  vim /etc/dhcp/dhcpd.conf 
+   96  dhcpd -t
+   97  systemctl restart dhcp
+   98  systemctl restart dhcpd
+   99  systemctl status dhcpd
+  100  mkdir -p /var/pxe/centos7/
+  101* ll /var/pxe/ce
+  102  mkdir -p /var/lib/tftpboot/centos7/
+  103  ll /var/lib/tftpboot/centos7/
+  104  df -TH
+  105  mv /root/Downloads/Centos-7.9-x86_64 /root/Downloads/Centos-7.9-x86_64.iso
+  106  mount -t iso9660 -o loop /root/Downloads/Centos-7.9-x86_64.iso /var/pxe/centos7/
+  107  ls /var/pxe/centos7/
+  108  df -TH | grep centos7
+  109  cp /var/pxe/centos7/images/pxeboot/vmlinuz /var/lib/tftpboot/centos7/
+  110  cp /var/pxe/centos7/images/pxeboot/initrd.img /var/lib/tftpboot/centos7/
+  111  cp /usr/share/syslinux/menu.c32 /var/lib/tftpboot/
+  112  ls /var/pxe/centos7/
+  113  vim /var/lib/tftpboot/pxelinux.cfg/default
+  114  ll /var/lib/tftpboot/pxelinux.cfg/default
+  115  mkdir /var/lib/tftpboot/pxelinux.cfg
+  116  vim /var/lib/tftpboot/pxelinux.cfg/default
+  117  ll /var/lib/tftpboot/
+  118  history | grep pxelinux.cfg
+  119  ls
+  120  history > /root/Documents/history_pxeboot

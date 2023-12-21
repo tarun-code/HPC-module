@@ -1,0 +1,146 @@
+# notes about XCAT server
+
+XCAT is a povisioning tools used to install os on the compute nodes
+
+types of servers
+1. Stateless
+2. Statefull
+3. Statelite
+
+# Statefull
+this type of server contains the hard disk, and it stores it's file on the disk and boots from it.
+
+# Stateless
+this type of server do not contains the hard disk, and it boots from the master over the network everytime
+
+# Statelite
+this type of server boot from the drive which is being mounted over the network, 
+
+# Xcat-core : this repository provides the base packages of the xcat
+# XCAT-dep : this repository provided the dependencies for the xcat
+
+# how to check verison of the xcat
+-> lsxcatd -v
+
+How to install XCAT
+1. go to OpenHPC -> Downloads
+    file:///C:/Users/rajesh/Downloads/Install_guide-CentOS7-xCAT-Stateless-SLURM-1.3.9-x86_64.pdf
+
+How to setup the xCAT
+step 1. add Host only adapter
+        -> change ip to 10.10.10.128/24
+        -> change the host-only ip in virtual network editor to 10.10.10.0
+        -> systemctl restart network
+step 2. disable firewalld
+    -> systemctl stop firewalld; systemctl disable firewalld
+step 3. disable selinux
+    -> setenforce 0
+    -> getenforce
+    -> sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/conf
+step 4. install yum-utils
+    -> yum install yum-utils
+step 5. install epel-release
+    -> yum install epel-release
+step 6. add the repositories
+    -> wget -P /etc/yum.repos.d https://xcat.org/files/xcat/repos/yum/latest/xcat-core/xcat-core.repo --no-check-certificate;
+    -> wget -P /etc/yum.repos.d https://xcat.org/files/xcat/repos/yum/xcat-dep/rh7/x86_64/xcat-dep.repo --no-check-certificate;
+step 7. install the xCAT
+    -> yum install xCAT
+step 8. enable the xCAT script
+    -> source /etc/profile.d/xcat.sh
+step 9. used to check the database of xcat data
+    -> tabdump site
+step 10. add the interface name for the master
+    -> chdef -t site dhcpinterfaces=ens37
+step 11. check if the interfaces have been added to xcat or not
+    -> tabdump site | grep 'ens'
+step 12. list the osimages 
+    -> lsdef -t osimage
+    step 12.1 : check the current os mount location
+    -> lsblk
+    # if iso is not found, then click on the CD iso at the bottam right corner and click connect
+step 13. create the diskimage using dd command
+    -> dd if=/dev/sr0 of=/centos.iso
+step 14. copy the centos iso file 
+    -> copycds /centos.iso
+step 15. check the lists of the os images
+    -> lsdef -t osimage
+    # install-compute : statefull
+    # netboot-compute : stateless
+    # statelite-compute : statelite 
+step 16. check the attributes of the osimages 
+    -> lsdef -t osimage centos7.9-x86_64-netboot-compute
+step 17. generate the image of the os image
+    -> genimage centos7.9-x86_64-netboot-compute
+step 18. navigate to the rootimg directory
+    -> cd /install/netboot/centos7.9/x86_64/compute/rootimg/
+step 19. create the directory
+    -> mkdir -p /install/custom/netboot
+step 20. create a def which will sync the files accross the os
+    -> chdef -t osimage -o centos7.9-x86_64-netboot-compute synclists="/install/custom/netboot/compute.synclist"
+    # check the osimage synclist parameter
+    -> lsdef -t osimage centos7.9-x86_64-netboot-compute
+step 21. append the files list to the osimage 
+    -> echo "/etc/passwd -> /etc/passwd" >> /install/custom/netboot/compute.synclist 
+    # another method
+    -> vim /install/custom/netboot/compute.synclist
+        /etc/passwd -> /etc/passwd
+        /etc/shadow -> /etc/shadow
+        /etc/group -> /etc/group         
+step 22. pack image
+    -> packimage centos7.9-x86_64-netboot-compute
+step 23. create defination to add the node
+    -> mkdef -t node cn00 groups=compute,all ip=10.10.10.3 mac=(macaddresso the node) netboot=xnba
+    # example
+    -> # mkdef -t node cn00 groups=compute,all ip=10.10.10.3 mac=00:0C:29:2D:16:68 netboot=xnba
+    -> # mkdef -t node cn01 groups=compute,all ip=10.10.10.4 mac=00:0C:29:BE:29:3E netboot=xnba
+
+step 24. check defination for the node
+    -> lsdef cn00
+    # add the domain defination
+    -> chdef -t site domain=cdac.in  
+step 25. makehost of the compute nodes
+    -> makehosts
+step 26. add the domain and node hostnames
+    -> [ip] master master.cdac.in
+    -> [ip] cn00 cn00.cdac.in
+step 27. makenetworks
+    -> makenetworks
+    -> makedhcp -n 
+    # check if entries are made or not
+    -> cat /etc/dhcp/dhcpd.conf
+    -> makedns -n
+step 28. test the node
+    -> nodeset compute osimage=centos7.9-x86_64-netboot-compute
+
+
+
+########################################
+
+    DiskFull xCAT installation
+
+########################################
+
+NOTE: please follow about steps from 1-14:
+
+Step 1: check the available osimages in the os
+    -> lsdef -t osimage centos7.9-x86_64-install-compute
+
+
+Step 2: Create Node Definition
+    -> mkdef -t node [node_name] groups=compute,all ip=[node_ip] mac=[node_mac] netboot=xnba
+    -> # mkdef -t node node1 groups=compute,all ip=10.10.10.139 mac=00:0C:29:13:F8:5E netboot=xnba
+
+step 3. makenetworks
+    -> makenetworks
+    -> makedhcp -n 
+    # check if entries are made or not
+    -> cat /etc/dhcp/dhcpd.conf
+    -> makedns -n
+    
+step 4. test the node
+    -> nodeset compute osimage=centos7.9-x86_64-install-compute
+
+
+
+        

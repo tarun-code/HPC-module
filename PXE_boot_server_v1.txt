@@ -1,0 +1,148 @@
+------------------------------------------------------------------------------
+
+This file contains the pxeboot installation instruction for the pxe-boot
+
+------------------------------------------------------------------------------
+
+
+# syslinux: this is bootloader which is used to boot the computenode by master
+# we copy three file from syslinux 
+# 1. initrd.img 
+# 2. vmlinuz
+# copied from syslinux
+# 3. menu.c32
+# 4. pxelinux.0
+
+
+# how to assign mannual ip address rather than taking it from DHCP, reason being master node need to have a fixed ip 
+# or else they wont be discovered by the compute node, if master's IP get's changed
+
+# first disable the firewall and the selinux in the master node
+-> systemctl stop firewalld;systemctl disable firewalld;
+#disable the selinux temporarlily
+-> setenforce 0
+#disable the selinux permanently
+-> sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+
+Step 1 : open the ens33 adapter file in network-scripts, and add the following lines
+-> vim /etc/sysconfig/network-scripts/ifcfg-ens33
+    # change BOOTPROTO=dhcp to BOOTPROTO=static
+    BOOTPROTO=static
+    IPADDR=192.168.100.100
+    PREFIX=24
+    GATEWAY=192.168.100.2       
+
+Step 2 : add name server to the file /etx/resolv.conf (ip of the nameserver will be same as the )
+-> vim /etc/resolv.com
+    nameserver 192.168.100.2
+
+Step 3 : restart the network manager
+-> systemctl restart network NetworkManager
+
+=================================
+    Setting up the DHCP server
+=================================
+
+
+Step 4 : install the dhcp server
+-> yum install dhcp
+
+Step 5: Config the DHCP config file
+-> vim /etc/dhcp/dhcp.conf    
+    -> subnet 192.168.100.0 netmask 255.255.255.0 {
+        option domain-name-servers pxe_master;
+        default-lease-time 600;
+        max-lease-time 7200;
+        range 192.168.100.105 192.168.100.120;
+        option routers 192.168.100.100;
+
+        filename "pxelinux.0"
+        next-server 192.168.100.100
+    }
+
+Step 6: to check if dhcp server was configured properly we use
+-> dhcpd -t
+
+Step 7: restart the DHCP server
+-> systemctl start dchpd; systemctl enable dhcpd;
+
+=================================
+    Installing the packages
+=================================
+
+
+Step 8: install the following packages
+-> yum install syslinux
+-> yum install tftp-server 
+-> systemctl start tftp.service; systemctl enable tftp.service;
+-> yum install xinetd
+-> systemctl start xinetd; systemctl enable xinetd;
+
+=================================
+    setting up the PXE-BOOT
+=================================
+
+Step 9: create a directory 
+-> mkdir -p /var/pxe/centos7
+-> mkdir -p /var/lib/tftpboot/centos7
+
+Step 10: check all the mounted devices on the system
+-> df -TH
+
+Step 11: mount the iso image so that it can be used by the pxe boot process
+-> mount -t iso9660 -o loop /root/Download/[filename] /var/pxe/centos7
+
+Step 12: copy the vmlinuz to the location /var/lib/tftpboot/centos7
+-> cp /var/pxe/centos7/images/pxeboot/vmlinuz /var/lib/tftpboot/centos7/
+
+Step 13: copy the initrd.img to the location /var/lib/tftpboot/centos7
+-> cp /var/pxe/centos7/images/pxeboot/initrd.img /var/lib/tftpboot/centos7/
+
+Step 14: copy the menu.c32 to the location /var/lib/tftpboot/
+-> cp /usr/share/syslinux/menu.c32 /var/lib/tftpboot/
+-> cp /usr/share/syslinux/pxelinux.0  /var/lib/tftpboot/
+
+Step 15: create the directory
+-> mkdir /var/lib/tftpboot/pxelinux.cfg
+
+Step 15: create the config file for pxelinux.cfg
+-> vim /var/lib/tftpboot/pxelinux.cfg/default
+    # creating PXE defination
+
+    timeout 100
+    default menu.c32
+
+    menu title ######## PXE BOOT MENU #########
+    label 1
+            menu label ^1) install Centos 7
+            kernel centos7/vmlinuz
+            append initrd=centos7/initrd.img method=http://10.0.0.30/centos7 devfs=nomount
+
+    label 2
+            menu label ^2) Boot from local drive
+            localboot
+
+===================================
+    setting up the HTTPD server
+===================================
+
+Step 16: install the httpd server
+-> yum install httpd;
+-> systemctl start httpd;systemctl enable httpd;
+
+
+Step 17: create the config file for pxeboot
+-> vi /etc/httpd/conf.d/pxeboot.conf
+    # create new
+    Alias /centos7 /var/pxe/centos7
+    <Directory /var/pxe/centos7>
+        Options Indexes FollowSymLinks
+        # IP address you allow to access
+        Require ip 127.0.0.1 10.10.10.0/24
+    </Directory>
+
+step 18: restart the httpd service
+-> systemctl restart httpd
+
+
+

@@ -1,0 +1,80 @@
+Step 1: POST : power on Self Test
+Step 2: BIOS : booting of the bios programs
+Step 3: MBR : Master book record gets loaded
+Step 4: GRUB : Stage 1 Of os boot loader gets performed
+Step 5: /boot : directory gets mapped
+Step 6: GRUB (/boot/grub/grub.conf) : gets booted from this script
+Step 7: Kernel initialised(/boot/vmlinux/) : this file gets loaded
+Step 8: /(root) : root file system gets mapped
+Step 9: init 1 : init process get initialised in Emergency mode(PID=1)
+Step 10: /etc/inittab : this service gets started
+Step 11: Sysinit : system get's initialized
+Step 12: OS runs in Single User MOde
+Step 13: OS runs in init level 5
+
+Init RUN Levels:
+init 0 : Shutdown (goes thru the /etc/rc0.d/* scripts then halts)
+init 1 : Single user mode or emergency mode means no network no multitasking is present in this mode only root has access in this runlevel
+init 2 : No network but multitasking support is present .
+init 3 : Network is present multitasking is present but without GUI .
+init 4 : It is similar to runlevel 3; It is reserved for other purposes in research.
+init 5 : Network is present multitasking and GUI is present with sound etc.
+init 6 : This runlevel is defined to system restart.
+init s : Tells the init command to enter the maintenance mode. When the
+system enters maintenance mode from another run level, only the system console
+is used as the terminal.
+init S : Same as init s.
+init m : Same as init s and init S.
+init M : Same as init s or init S or init m.
+
+
+How to check run level?
+-> runlevel
+
+location where runlevel are defined:
+/etc/rc.d/
+S : start using this file
+K : when kernel shutdown it uses this filename starting with K
+
+Config files
+/etc/sysconfig/network-scripts/ifcfg-eth0
+
+How to find failed services:
+/var/logs
+
+
+How to create new user in centos
+-> sudo adduser username
+how to add password for the new user
+-> sudo passwd username
+if we want to give administrative rights to newly created user
+-> sudo usermod -aG wheel username
+how to delete a user 
+-> userdel username
+
+HPC Homework
+1. cores
+2. HyperThreading
+3. top500.org
+4. Raid Controllers
+5. which services are creating logs, how they are creating it
+
+----------------------------------------------------
+31st may 
+----------------------------------------------------
+
+PXEboot
+
+-> vim /etc/xinetd.d/tftp ->  disable = no
+# to check if file was changed or not
+-> grep disabled /etc/xinetd.d/tftp
+
+-> systemctl start xinetd
+-> systemctl enable xinetd
+-> systemctl status xinetd
+-> vim /etc/dhcp/dhcpd.conf
+-> systemctl status dhcpd
+# install dhcp package
+-> yum install dhcp
+
+
