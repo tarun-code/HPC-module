@@ -1,0 +1,323 @@
+**********Open PBS installation***************
+---------------------------19-07-2023-----------------
+Configure PBS Server
+Install PBS Server
+---------------------------------------------
+Prerequistic:
+
+Required 3 Centos 7 VM's
+VM1 - pbs-master   
+VM2 - pbs-node1 	
+VM3 - pbs-node2	
+
+Use below Script for Disable firewall,SELinx and change hostname, enable Network
+
+-----Do only i master----
+
+vim /etc/hosts
+#edit
+
+10.10.10.156 pbs-master
+10.10.10.158 pbs-node1 
+10.10.10.157 pbs-node2
+
+:wq savefile
+
+
+ssh-keygen
+ssh-copy-id root@pbs-node1;
+ssh-copy-id root@pbs-node2;
+
+#then use below Remote synchronize command
+
+rsync  /etc/hosts root@10.10.10.158:/etc/hosts
+rsync  /etc/hosts root@10.10.10.157:/etc/hosts
+
+vim script.sh
+
+#edit:
+
+#!/bin/bash
+# disable the selinux
+setenforce 0;
+
+# turn up the nat port
+ifup ens33;
+echo "IP Address Status: " `ens`
+ip a | grep ens
+
+# stop the firewall service
+systemctl stop firewalld; systemctl disable firewalld;
+
+echo "Firewall Status : " `systemctl status firewalld | grep Active`
+# disable the selinux at policy level
+sed -i 's/^SELINUX=.*$/SELINUX=disabled/g' /etc/selinux/config;
+
+echo " SELINUX Status : " `getenforce`
+# Change Hostname SetHostname
+read -p "Enter your Hostname: " Hostname
+hostnamectl set-hostname "$Hostname";
+su
+
+
+:wq 
+#savefile
+
+
+ssh-keygen
+ssh-copy-id root@pbs-node1;
+ssh-copy-id root@pbs-node2;
+
+---------------------------
+
+then install git
+
+yum install git -y
+git clone https://github.com/openpbs/openpbs.git
+
+mv openpbs/ openpbs-23.06.06
+tar -cvf /root/rpmbuild/SOURCES/openpbs-23.06.06.tar.gz openpbs-23.06.06/
+
+#if you getting any packages installation error then select those packages and install that.
+
+yum install libtool-ltdl-devel hwloc-devel libXt-devel libedit-devel libical-devel ncurses-devel postgresql-devel postgresql-contrib python3-devel tcl-devel tk-devel zlib-devel expat-devel openssl-devel -y
+
+rpmbuild -ba openpbs.spec
+yum install openpbs-server-23.06.06-0.x86_64.rpm
+
+systemctl status pbs
+
+vim /etc/pbs.conf 
+:edit 
+
+# Check there Server name and MOM=0 
+
+PBS_EXEC=/opt/pbs
+PBS_SERVER=pbs-master
+PBS_START_SERVER=1
+PBS_START_SCHED=1
+PBS_START_COMM=1
+PBS_START_MOM=0
+PBS_HOME=/var/spool/pbs
+PBS_CORE_LIMIT=unlimited
+PBS_SCP=/bin/scp
+
+:wq savefile
+
+after that change the permission pbs_iff and pbs_rcp
+
+chmod 4755 /opt/pbs/sbin/pbs_iff /opt/pbs/sbin/pbs_rcp
+
+systemctl status pbs | grep active
+
+qstat -B
+/etc/init.d/pbs status
+. /etc/profile.d/pbs.sh
+which qstat
+
+
+---------------------------20-07-2023-----------------
+
+------------OnClient -pbs-node1--------------------
+Go to node 1
+yum install git -y
+#then clone git repository
+git clone https://github.com/openpbs/openpbs.git
+
+
+
+STEP 1: Excute below commands
+./autogen.sh
+
+#check error and see the supported packages using belowcommands
+yum provides */autoreconf
+yum install autoconf automake libtool -you
+./autogen.sh
+mkdir -p /opt/pbs
+
+./configure --prefix=/opt/pbs
+yum provides */openssl/aes.h
+yum install openssl-devel-1.0.2k-26.el7_9.x86_64 -y
+ 
+#if you getting dependency packages errors then run below command
+ 
+yum install libtool-ltdl-devel hwloc-devel libXt-devel libedit-devel libical-devel ncurses-devel postgresql-devel postgresql-contrib python3-devel tcl-devel tk-devel zlib-devel expat-devel openssl-devel -y
+ 
+#then run the below command
+./configure --prefix=/opt/pbs
+
+make
+yum provides */usr/bin/swig
+yum install swig
+ 
+make
+make install
+
+. /opt/pbs/etc/pbs.sh
+chmod +x /opt/pbs/etc/pbs.sh
+bash /opt/pbs/etc/pbs.sh
+export PATH=${PATH}:/opt/pbs/bin
+
+
+# then go to the pbs.conf file and do the below changes.
+
+vim /etc/pbs.conf 
+:edit 
+# Check there Server,sched,comm=0 and MOM=1 
+
+PBS_EXEC=/opt/pbs
+PBS_SERVER=pbs-master
+PBS_START_SERVER=0
+PBS_START_SCHED=0
+PBS_START_COMM=0
+PBS_START_MOM=1
+PBS_HOME=/var/spool/pbs
+PBS_CORE_LIMIT=unlimited
+PBS_SCP=/bin/scp
+
+:wq savefile
+--------------------------------
+
+systemctl status pbs
+systemctl start pbs
+systemctl status pbs | grep Active
+
+# Then make folder for mounting 
+mkdir /root/pbsdemo
+# mount the pbs-master and folder path
+
+mount pbs-master:/root/rpmbuild/RPMS/x86_64/ /root/pbsnode2/
+
+
+cd /root/pbsnode2
+
+
+vim /var/spool/pbs/mom_priv/config
+edit:
+$logevent 0x1ff
+#$clientname pbs-node2
+$restrict_user_maxsysid 999
+
+:wq savefile 
+
+
+------------------On master----
+
+vim /var/spool/pbs/server_priv/nodes
+edit:
+
+pbs-node1 np=1
+pbs-node2 np=1
+
+pbs-master np=1
+
+
+:wq savefile
+
+#for adding 2 nodes using qmgr command
+
+qmgr
+
+o/p-
+Max open servers: 49
+Qmgr: create node pbs-node1
+Qmgr: create node pbs-node2
+Qmgr: exit
+pbsnodes -a #for checking nodes is added or not
+
+
+#If you want add pbs-master as work as client then do the following changes in master server
+
+Step-1
+
+vim /etc/pbs.conf 
+:edit 
+# Check there Server,sched,comm=1 and MOM=1 
+
+PBS_EXEC=/opt/pbs
+PBS_SERVER=pbs-master
+PBS_START_SERVER=1
+PBS_START_SCHED=1
+PBS_START_COMM=1
+PBS_START_MOM=1
+PBS_HOME=/var/spool/pbs
+PBS_CORE_LIMIT=unlimited
+PBS_SCP=/bin/scp
+
+:wq savefile   
+
+
+systemctl restart pbs
+systemctl status pbs | grep Active               
+-----------------------------------
+Step-2
+
+vim /var/spool/pbs/server_priv/nodes
+edit:
+
+pbs-node1 np=1
+pbs-node2 np=1
+pbs-master np=1
+
+:wq savefile
+
+
+systemctl restart pbs
+systemctl status pbs | grep Active
+-------------------------------------
+Step-3
+
+#for adding pbs-master nodes using qmgr command
+
+qmgr
+
+o/p-
+Max open servers: 49
+Qmgr: create node pbs-master
+Qmgr: exit
+pbsnodes -a #for checking nodes is added or not
+
+systemctl restart pbs
+systemctl status pbs | grep Active
+
+------------------------------------------
+
+
+#for sheduling the job we required same username in master and all nodes
+useradd master
+passwd master
+-redhat
+ redhat
+
+#Shedule the job
+
+qsub -I
+
+
+
+
+#Script file
+
+vim 
+:edit
+
+#!/bin/sh
+### Set the job name (for your reference)
+#PBS -N testjob
+### Set the project name, your department code by default
+#PBS -P cc
+####
+#PBS -l select=1:ncpus=1
+### Specify "wallclock time" required for this job, hhh:mm:ss
+#PBS -l walltime=00:01:00
+
+#PBS -l software=replace_with_Your_software_name
+# After job starts, must goto working directory.
+# $PBS_O_WORKDIR is the directory from where the job is fired.
+echo "==============================="
+echo $PBS_JOBID
+#cat $PBS_NODEFILE
+echo "==============================="
+cd $PBS_O_WORKDIR
+
+

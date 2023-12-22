@@ -1,0 +1,288 @@
+prerequisites:
+	OS : Rocky_Linux_8.6
+	RAM : 4 GB
+	HDD : 20 GB
+	core : 2
+	# after installing the OS
+		-> Disable Selinux
+		-> Disable Firewalld
+
+Warewulf v4:
+
+References for warewulf:
+-> https://warewulf.org/docs/development/contents/introduction.html
+-> https://www.admin-magazine.com/HPC/Articles/Warewulf-4
+-> https://www.admin-magazine.com/HPC/Articles/Warewulf-4-Time-and-Resource-Management
+-> https://www.admin-magazine.com/HPC/Articles/Warewulf-4-Environment-Modules
+-> https://www.admin-magazine.com/HPC/Articles/Warewulf-4-GPUs
+
+Question : How to install warewulf
+-> to install warewulf
+	Step 1 : disable Selinux
+	Step 2 : disable the firewall
+	Step 3 : install the repository
+		-> yum install -y https://repo.ctrliq.com/rhel/8/ciq-release.rpm
+		-> yum install -y warewulf
+		
+	Step 4 : edit the config file 
+		-> vi /etc/warewulf/warewulf.conf
+			-> change ipaddr, network, dhcp range
+			
+	Step 5 : Initialize the warewulf
+		-> wwctl configure --all
+		
+	Step 6 : check if services are running or not
+		-> systemctl status dhcpd tftp nfs-server warewulfd
+		# if services are not running then restart the services
+			-> systemctl start dhcpd tftp nfs-server warewulfd
+		# enable the services
+			-> systemctl enable dhcpd tftp nfs-server warewulfd
+		# check logs if necessary
+			-> cat /var/log/warewulfd.log
+			
+	Step 7 : Pull container 
+		-> wwctl container import docker://warewulf/rocky rocky-8
+		-> wwctl container import docker://warewulf/centos-7 centos-7
+		-> wwctl container import docker://ghcr.io/hpcng/warewulf-centos:7 centos-7 
+		# to sync uid and gid
+		-> wwctl container syncuser --write centos-7
+		# import kernel
+		-> wwctl container import docker://registry.opensuse.org/science/warewulf/tumbleweed/containerfile/kernel:latest tw
+		# import kernel from container tw
+		-> wwctl kernel import -DC tw
+		# check if container is downloaded or not
+		-> wwctl container list
+		# to modify the container 
+		-> wwctl container exec rocky-8 /bin/bash
+		
+		
+	
+	Step 8 : Configure the Compute Node
+		# to get list of the the compute nodes
+		-> wwctl node list -a
+		# To add a compute node
+		-> wwctl node add --netdev [Interface name] --hwaddr [MAC addr] --ipaddr [IP addr] --netmask 255.255.255.0 [Node-name]
+		-> wwctl node add --netdev ens34 --hwaddr 00:0c:29:bf:82:4e --ipaddr 10.10.10.42 --netmask 255.255.255.0 cn1
+		-> wwctl node add --netdev ens34 --hwaddr 00:0c:29:1a:72:66 --ipaddr 10.10.10.205 --netmask 255.255.255.0 node1
+		-> wwctl node add --netdev ens34 --hwaddr 00:0c:29:24:99:c3 --ipaddr 10.10.10.225 --netmask 255.255.255.0 node1
+		# if MAC address is not known then we can use the command
+		-> sudo wwctl node add node1 --ipaddr [IP addr] --discoverable
+		# to set the compute node with specific container image
+		-> wwctl node set --container [container-name] [node-name]
+		-> wwctl node set --container rocky-8 node1
+		-> wwctl node set -K tw node1
+		# change password for compute node
+		-> wwctl container exec centos-7 /bin/bash
+			-> yum install passwd -y
+			-> passwd root
+				-> New password : root
+				-> Confirm New password : root
+			-> exit
+		# to set profile
+		->  wwctl profile set -y default --netname default --netmask 255.255.255.0 --gateway 10.10.10.1
+		
+		
+	Step 9 : Boot the compute node
+		# check that the NFS exported files have mounted (use the mount command),
+		# look at the local IP address (ip addr show),
+		# ping the host node with the IP address (ping 10.0.0.1), and
+		# check the hostname of the node (more /etc/hostname)
+		# start the compute node on the given network 
+	
+	Step 10 : try ping the compute node
+
+
+OpenPBS Installation: 
+References Link: https://raw.githubusercontent.com/openpbs/openpbs/master/INSTALL
+
+-> On master
+	Step 1 : configure and enable powertools
+		-> dnf install -y dnf-plugins-core
+		-> dnf config-manager --set-enabled powertools
+		-> dnf install -y gcc make rpm-build libtool hwloc-devel \
+		      libX11-devel libXt-devel libedit-devel libical-devel \
+		      ncurses-devel perl postgresql-devel postgresql-contrib python3-devel tcl-devel \
+		      tk-devel swig expat-devel openssl-devel libXext libXft \
+		      autoconf automake gcc-c++
+
+	Step 2 : Install the prerequisite packages for running PBS
+		-> yum install -y expat libedit postgresql-server postgresql-contrib python3 \
+		      sendmail sudo tcl tk libical
+	Step 3 : download the package from git repo
+		-> git clone https://github.com/openpbs/openpbs.git
+		# navigate to the directory
+		-> cd openpbs
+		# run autogen.sh file
+		-> ./autogen.sh
+		# create prefix file
+		-> mkdir /opt/pbs
+		# build files using this command
+		-> ./configure --help
+		# set the output path
+		-> ./configure --prefix=/opt/pbs/
+		-> make
+		-> sudo make install
+		-> sudo /opt/pbs/libexec/pbs_postinstall
+		-> cat /etc/pbs.conf
+		# change file permissions
+		-> chmod 4755 /opt/pbs/sbin/pbs_iff /opt/pbs/sbin/pbs_rcp
+		# start the services
+		-> /etc/init.d/pbs start
+		# sources the openpbs script
+		-> . /etc/profile.d/pbs.sh
+		-> qstat -B
+
+-> For node1
+	-> wwctl container exec rocky-8 /bin/bash
+	Step 1 : configure and enable powertools
+		-> dnf install -y dnf-plugins-core
+		-> dnf config-manager --set-enabled powertools
+		-> 
+dnf install -y gcc make rpm-build libtool hwloc-devel \
+libX11-devel libXt-devel libedit-devel libical-devel \
+ncurses-devel perl postgresql-devel postgresql-contrib python3-devel tcl-devel \
+tk-devel swig expat-devel openssl-devel libXext libXft \
+autoconf automake gcc-c++
+
+	Step 2 : Install the prerequisite packages for running PBS
+		-> yum install -y expat libedit postgresql-server postgresql-contrib python3 sendmail sudo tcl tk libical
+	Step 3 : download the package from git repo
+		-> git clone https://github.com/openpbs/openpbs.git
+		# navigate to the directory
+		-> cd openpbs
+		# run autogen.sh file
+		-> ./autogen.sh
+		# create prefix file
+		-> mkdir /opt/pbs
+		# build files using this command
+		-> ./configure --help
+		# set the output path
+		-> ./configure --prefix=/opt/pbs/
+		-> make
+		-> sudo make install
+		-> sudo /opt/pbs/libexec/pbs_postinstall
+		-> cat /etc/pbs.conf
+		# change file permissions
+		-> chmod 4755 /opt/pbs/sbin/pbs_iff /opt/pbs/sbin/pbs_rcp
+		# start the services
+		-> /etc/init.d/pbs start
+		# sources the openpbs script
+		-> . /etc/profile.d/pbs.sh
+		-> qstat -B
+-> on master 
+	-> vim /var/spool/pbs/server_priv/nodes
+		-> node1 np=1
+		-> warewulf np=1
+	-> qmgr
+		-> create node node1 (# hostname of node1)
+		-> create node warewulf (# hostname of master)
+		-> exit
+	-> pbsnodes -a
+
+Ganglia Installation:
+	-> Master:
+		# install the package
+		-> dnf install -y epel-release
+		-> dnf install -y ganglia ganglia-gmetad ganglia-gmond ganglia-web
+		# edit the gmetad.conf File
+		-> vi /etc/ganglia/gmetad.conf
+			-> on line no 44 : change cluster name 
+			-> Cluster Name: ganglia_cluster
+		-> vi /etc/ganglia/gmond.conf
+			-> Line number 30 : give cluster name given in gmetad.conf
+			-> Line number 50 : change default ip to master's ip
+			-> Line number 57,59 : comment these lines
+		-> systemctl start gmetad gmond httpd
+		-> systemctl enable gmetad gmond httpd
+		-> systemctl status gmetad gmond httpd
+	-> Node1:
+		-> dnf install -y epel-release
+		-> dnf install -y ganglia-gmond
+		# edit the gmetad.conf File
+		-> vi /etc/ganglia/gmond.conf
+			-> Line number 30 : give cluster name given in gmetad.conf
+			-> Line number 50 : change default ip to master's ip
+			-> Line number 57,59 : comment these lines
+		# create user mannually
+		-> groupadd -g 973 Ganglia;
+		-> useradd -m -c "Ganglia Monitoring System" -d /var/lib/ganglia -u 975 -g Ganglia -s /sbin/nologin ganglia;
+		# start the
+		-> systemctl start gmond
+		-> systemctl enable gmond
+		-> systemctl status gmond
+
+
+
+			
+LDAP installation ( Rocky Linux:8.6 )
+References Link : https://www.server-world.info/en/note?os=Rocky_Linux_8&p=openldap&f=1
+References Link : https://www.server-world.info/en/note?os=Rocky_Linux_8&p=openldap&f=1
+References Link : https://www.itzgeek.com/how-tos/linux/centos-how-tos/step-step-openldap-server-configuration-centos-7-rhel-7.html
+
+prerequisite:
+	-> echo "[LDAP_server ip] LDAP Server" >> /etc/hosts
+	-> echo "[LDAP_client ip] LDAP Client" >> /etc/hosts
+
+# Step 1 : installing the Ldap server
+	-> yum -y install openldap-servers openldap-clients
+# Step 2 : copy the database
+	-> cp /usr/share/openldap-servers/DB_CONFIG.example /var/lib/ldap/DB_CONFIG
+# Step 3 : change the permissions
+	-> chown ldap. /var/lib/ldap/DB_CONFIG
+# Step 4 : start the ldap services
+	-> systemctl start slapd
+	-> systemctl enable slapd
+# Step 5 : change the root password
+	-> slappasswd
+		-> Enter password : 
+		-> Re-Enter password : 
+
+# Step 6 : create password database file
+	-> # specify the password generated above for "olcRootPW" section
+dn: olcDatabase={0}config,cn=config
+changetype: modify
+add: olcRootPW
+olcRootPW: {SSHA}HaIu9X6he+Ki1uiXk+SCpP0NLi+Zjpcr
+
+# Step 7 : add the file to the database
+ldapadd -Y EXTERNAL -H ldapi:/// -f chrootpw.ldif
+
+# Step 8 : import the basic schemas
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif
+ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif
+
+# Step 9 : generate chdomain file
+# replace to your own domain name for "dc=cdac,dc=in" section
+# specify the password generated above for "olcRootPW" section
+dn: olcDatabase={1}monitor,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: {0}to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth"
+  read by dn.base="cn=Manager,dc=cdac,dc=in" read by * none
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcSuffix
+olcSuffix: dc=cdac,dc=in
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcRootDN
+olcRootDN: cn=Manager,dc=cdac,dc=in
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+add: olcRootPW
+olcRootPW: {SSHA}HaIu9X6he+Ki1uiXk+SCpP0NLi+Zjpcr
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+add: olcAccess
+olcAccess: {0}to attrs=userPassword,shadowLastChange by
+  dn="cn=Manager,dc=cdac,dc=in" write by anonymous auth by self write by * none
+olcAccess: {1}to dn.base="" by * read
+olcAccess: {2}to * by dn="cn=Manager,dc=cdac,dc=in" write by * read
+
+# Step 10 : add chdomain file to database
+ldapmodify -Y EXTERNAL -H ldapi:/// -f chdomain.ldif
